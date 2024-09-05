@@ -32,3 +32,13 @@
    ```bash
    streamlit run src/gui/gui.py
    ```
+
+
+
+**Note:**
+
+1. **Stop word:** It get the some below source:
+- https://www.kaggle.com/datasets/tlthegreatestone/vietnamese-stop-words
+- https://github.com/stopwords/vietnamese-stopwords
+- https://xltiengviet.fandom.com/wiki/Danh_s%C3%A1ch_stop_word
+- https://github.com/ltkk/vietnamese-stopwords

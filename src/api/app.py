@@ -6,27 +6,29 @@ import logging
 from vncorenlp import VnCoreNLP
 from pyvi import ViTokenizer
 from underthesea import word_tokenize
-import vietokenizer
-import os
 import re
-import sys
 
 patterns = {
-    "TCVN3"        : [ r'\w­[¬íêîëì]|®[¸µ¹¶·Ê¾»Æ¼½ÌÑÎÏªÕÒÖÓÔÝ×ÞØÜãßäáâ«èåéæç¬íêîëìóïôñòøõùö]', 0],
-    "VNI_WIN"      : [r'[öô][ùøïûõ]|oa[ëùøïûõ]|ñ[aoeuôö][äàáåãùøïûõ]', re.IGNORECASE],
-    "VIQR"         : [r'u[\+\*]o[\+\*]|dd[aoe][\(\^~\'`]|[aoe]\^[~`\'\.\?]|[uo]\+[`\'~\.\?]|a\([\'`~\.\?]', re.IGNORECASE],
-    "UNICODE"      : [r'[Ạ-ỹ]', 0],
-    "VISCII"       : [r'\wß[½¾¶þ·Þ]|ð[áàÕäã¤í¢£ÆÇè©ë¨êª«®¬­íì¸ïîóò÷öõô¯°µ±²½¾¶þ·ÞúùøüûÑ×ñØ]', 0],
-    "VPS_WIN"      : [r'\wÜ[Ö§©®ª«]|Ç[áàåäãÃí¢¥£¤èËÈëêÍíìÎÌïóòÕõôÓÒ¶°Ö§©®ª«úùøûÛÙØ¿º]', 0],
-    "VIETWARE_F"   : [r'\w§[¥ìéíêë]|¢[ÀªÁ¶ºÊÛÂÆÃÄÌÑÍÎ£ÕÒÖÓÔÛØÜÙÚâßãàá¤çäèåæ¥ìéíêëòîóïñ÷ôøõ]', 0],
-    "VIETWARE_X"   : [r'[áãä][úöûøù]|à[õòûóô]|[åæ][ïìüíî]', re.IGNORECASE]
-    }
+    "TCVN3": [
+        r"\w­[¬íêîëì]|®[¸µ¹¶·Ê¾»Æ¼½ÌÑÎÏªÕÒÖÓÔÝ×ÞØÜãßäáâ«èåéæç¬íêîëìóïôñòøõùö]",
+        0,
+    ],
+    "VNI_WIN": [r"[öô][ùøïûõ]|oa[ëùøïûõ]|ñ[aoeuôö][äàáåãùøïûõ]", re.IGNORECASE],
+    "VIQR": [
+        r"u[\+\*]o[\+\*]|dd[aoe][\(\^~\'`]|[aoe]\^[~`\'\.\?]|[uo]\+[`\'~\.\?]|a\([\'`~\.\?]",
+        re.IGNORECASE,
+    ],
+    "UNICODE": [r"[Ạ-ỹ]", 0],
+    "VPS_WIN": [r"\wÜ[Ö§©®ª«]|Ç[áàåäãÃí¢¥£¤èËÈëêÍíìÎÌïóòÕõôÓÒ¶°Ö§©®ª«úùøûÛÙØ¿º]", 0],
+    "VIETWARE_X": [r"[áãä][úöûøù]|à[õòûóô]|[åæ][ïìüíî]", re.IGNORECASE],
+}
 
-TCVN3 = ["Aµ", "A¸", "¢" , "A·", "EÌ", "EÐ", "£" , "I×", "IÝ", "Oß",
+list_unicode = {
+    "TCVN3": ["Aµ", "A¸", "¢" , "A·", "EÌ", "EÐ", "£" , "I×", "IÝ", "Oß",
 			"Oã", "¤" , "Oâ", "Uï", "Uó", "Yý", "µ" , "¸" , "©" , "·" ,
 			"Ì" , "Ð" , "ª" , "×" , "Ý" , "ß" , "ã" , "«" , "â" , "ï" ,
 			"ó" , "ý" , "¡" , "¨" , "§" , "®" , "IÜ", "Ü" , "Uò", "ò" ,
-			"¥" , "¬" , "¦" , "­"  , "A¹", "¹" , "A¶", "¶" , "¢Ê", "Ê" ,
+			"¥" , "¬" , "¦" , "<00ad>", "A¹", "¹" , "A¶", "¶" , "¢Ê", "Ê" ,
 			"¢Ç", "Ç" , "¢È", "È" , "¢É", "É" , "¢Ë", "Ë" , "¡¾", "¾" ,
 			"¡»", "»" , "¡¼", "¼" , "¡½", "½" , "¡Æ", "Æ" , "EÑ", "Ñ" ,
 			"EÎ", "Î" , "EÏ", "Ï" , "£Õ", "Õ" , "£Ò", "Ò" , "£Ó", "Ó" ,
@@ -35,9 +37,8 @@ TCVN3 = ["Aµ", "A¸", "¢" , "A·", "EÌ", "EÐ", "£" , "I×", "IÝ", "Oß",
 			"¤é", "é" , "¥í", "í" , "¥ê", "ê" , "¥ë", "ë" , "¥ì", "ì" ,
 			"¥î", "î" , "Uô", "ô" , "Uñ", "ñ" , "¦ø", "ø" , "¦õ", "õ" ,
 			"¦ö", "ö" , "¦÷", "÷" , "¦ù", "ù" , "Yú", "ú" , "Yþ", "þ" ,
-			"Yû", "û" , "Yü", "ü" , "."]
-
-UNICODE = ["À", "Á", "Â", "Ã", "È", "É", "Ê", "Ì", "Í", "Ò",
+			"Yû", "û" , "Yü", "ü" , "."],
+    "UNICODE": ["À", "Á", "Â", "Ã", "È", "É", "Ê", "Ì", "Í", "Ò",
 			"Ó", "Ô", "Õ", "Ù", "Ú", "Ý", "à", "á", "â", "ã",
 			"è", "é", "ê", "ì", "í", "ò", "ó", "ô", "õ", "ù",
 			"ú", "ý", "Ă", "ă", "Đ", "đ", "Ĩ", "ĩ", "Ũ", "ũ",
@@ -50,9 +51,8 @@ UNICODE = ["À", "Á", "Â", "Ã", "È", "É", "Ê", "Ì", "Í", "Ò",
 			"Ộ", "ộ", "Ớ", "ớ", "Ờ", "ờ", "Ở", "ở", "Ỡ", "ỡ",
 			"Ợ", "ợ", "Ụ", "ụ", "Ủ", "ủ", "Ứ", "ứ", "Ừ", "ừ",
 			"Ử", "ử", "Ữ", "ữ", "Ự", "ự", "Ỳ", "ỳ", "Ỵ", "ỵ",
-			"Ỷ", "ỷ", "Ỹ", "ỹ", "."]
-
-VIQR = ["A`" , "A'" , "A^" , "A~" , "E`" , "E'" , "E^" , "I`" , "I'" , "O`" ,
+			"Ỷ", "ỷ", "Ỹ", "ỹ", "."],
+    "VIQR": ["A`" , "A'" , "A^" , "A~" , "E`" , "E'" , "E^" , "I`" , "I'" , "O`" ,
 			"O'" , "O^" , "O~" , "U`" , "U'" , "Y'" , "a`" , "a'" , "a^" , "a~" ,
 			"e`" , "e'" , "e^" , "i`" , "i'" , "o`" , "o'" , "o^" , "o~" , "u`" ,
 			"u'" , "y'" , "A(" , "a(" , "DD" , "dd" , "I~" , "i~" , "U~" , "u~" ,
@@ -65,9 +65,8 @@ VIQR = ["A`" , "A'" , "A^" , "A~" , "E`" , "E'" , "E^" , "I`" , "I'" , "O`" ,
 			"O^.", "o^.", "O+'", "o+'", "O+`", "o+`", "O+?", "o+?", "O+~", "o+~",
 			"O+.", "o+.", "U." , "u." , "U?" , "u?" , "U+'", "u+'", "U+`", "u+`",
 			"U+?", "u+?", "U+~", "u+~", "U+.", "u+.", "Y`" , "y`" , "Y." , "y." ,
-			"Y?" , "y?" , "Y~" , "y~" , "\\."]
-
-VNI_WIN = ["AØ", "AÙ", "AÂ", "AÕ", "EØ", "EÙ", "EÂ", "Ì" , "Í" , "OØ",
+			"Y?" , "y?" , "Y~" , "y~" , "\\."],
+    "VNI_WIN": ["AØ", "AÙ", "AÂ", "AÕ", "EØ", "EÙ", "EÂ", "Ì" , "Í" , "OØ",
 			"OÙ", "OÂ", "OÕ", "UØ", "UÙ", "YÙ", "aø", "aù", "aâ", "aõ",
 			"eø", "eù", "eâ", "ì" , "í" , "oø", "où", "oâ", "oõ", "uø",
 			"uù", "yù", "AÊ", "aê", "Ñ" , "ñ" , "Ó" , "ó" , "UÕ", "uõ",
@@ -80,9 +79,8 @@ VNI_WIN = ["AØ", "AÙ", "AÂ", "AÕ", "EØ", "EÙ", "EÂ", "Ì" , "Í" , "OØ",
 			"OÄ", "oä", "ÔÙ", "ôù", "ÔØ", "ôø", "ÔÛ", "ôû", "ÔÕ", "ôõ",
 			"ÔÏ", "ôï", "UÏ", "uï", "UÛ", "uû", "ÖÙ", "öù", "ÖØ", "öø",
 			"ÖÛ", "öû", "ÖÕ", "öõ", "ÖÏ", "öï", "YØ", "yø", "Î" , "î" ,
-			"YÛ", "yû", "YÕ", "yõ", "."]
-
-VPS_WIN = ["à", "Á", "Â", "‚", "×", "É", "Ê", "µ", "´", "¼",
+			"YÛ", "yû", "YÕ", "yõ", "."],
+    "VPS_WIN":["à", "Á", "Â", "‚", "×", "É", "Ê", "µ", "´", "¼",
 			"¹", "Ô", "õ", "¨", "Ú", "Ý", "à", "á", "â", "ã",
 			"è", "é", "ê", "ì", "í", "ò", "ó", "ô", "õ", "ù",
 			"ú", "š", "ˆ", "æ", "ñ", "Ç", "¸", "ï", "¬", "Û",
@@ -95,9 +93,8 @@ VPS_WIN = ["à", "Á", "Â", "‚", "×", "É", "Ê", "µ", "´", "¼",
 			"¶", "¶", "", "§", "©", "©", "Ÿ", "ª", "¦", "«",
 			"®", "®", "ø", "ø", "Ñ", "û", "­", "Ù", "¯", "Ø",
 			"±", "º", "»", "»", "¿", "¿", "²", "ÿ", "œ", "œ",
-			"›", "›", "Ï", "Ï", "."]
-
-VIETWARE_X = ["AÌ", "AÏ", "Á", "AÎ", "EÌ", "EÏ", "Ã", "Ç", "Ê", "OÌ",
+			"›", "›", "Ï", "Ï", "."],
+    "VIETWARE_X": ["AÌ", "AÏ", "Á", "AÎ", "EÌ", "EÏ", "Ã", "Ç", "Ê", "OÌ",
 			"OÏ", "Ä", "OÎ", "UÌ", "UÏ", "YÏ", "aì", "aï", "á", "aî",
 			"eì", "eï", "ã", "ç", "ê", "oì", "oï", "ä", "oî", "uì",
 			"uï", "yï", "À", "à", "Â", "â", "É", "é", "UÎ", "uî",
@@ -110,30 +107,49 @@ VIETWARE_X = ["AÌ", "AÏ", "Á", "AÎ", "EÌ", "EÏ", "Ã", "Ç", "Ê", "OÌ",
 			"ÄÜ", "äü", "ÅÏ", "åï", "ÅÌ", "åì", "ÅÍ", "åí", "ÅÎ", "åî",
 			"ÅÜ", "åü", "UÛ", "uû", "UÍ", "uí", "ÆÏ", "æï", "ÆÌ", "æì",
 			"ÆÍ", "æí", "ÆÎ", "æî", "ÆÛ", "æû", "YÌ", "yì", "YÑ", "yñ",
-			"YÍ", "yí", "YÎ", "yî", "."]
-
+			"YÍ", "yí", "YÎ", "yî", "."],
+}
+    
 def detectCharset(str_input):
     for pattern in patterns:
         match = re.search(patterns[pattern][0], str_input, patterns[pattern][1])
         if match != None:
-            return pattern
+            return list_unicode[pattern]
     return None
 
-def convert(str_original, target_charset):
-    source_charset = detectCharset(str_original)
+
+def convert(str_original, source_unicode, target_charset):
+    source_charset = list_unicode[source_unicode]
+    if (source_charset == None):
+        return "Không thể xác định loại unicde của văn bản"
+    
     map_length = len(source_charset)
-    
+
     for number in range(map_length):
-        str_original = str_original.replace(source_charset[number], "::" + str(number) + "::")
+        str_original = str_original.replace(
+            source_charset[number], "::" + str(number) + "::"
+        )
     for number in range(map_length):
-        str_original = str_original.replace("::" + str(number) + "::", target_charset[number])
-    
-    return source_charset
+        str_original = str_original.replace(
+            "::" + str(number) + "::", target_charset[number]
+        )
+
+    return str_original
+
+
+def load_stopwords(file_path):
+    stopwords = set()
+    with open(file_path, "r", encoding="utf-8") as file:
+        for line in file:
+            stopword = line.strip()
+            stopwords.add(stopword)
+    return stopwords
 
 class FunctionList(BaseModel):
     text: str
     function: list[str]
     option: dict
+
 
 app = FastAPI()
 
@@ -141,60 +157,203 @@ app = FastAPI()
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+
 def tach_tu(sentence, library):
     output = "Thư viện không chính xác!!!"
     match library:
         case "VnCoreNLP":
             rdrsegmenter = VnCoreNLP("http://nginx", 80)
-            raw_output  = rdrsegmenter.tokenize(sentence)
-            output = [item for sublist in nested_list for item in sublist]
+            raw_output = rdrsegmenter.tokenize(sentence)
+            output = [item for sublist in raw_output for item in sublist]
         case "Pyvi":
             tokenized_sentence = ViTokenizer.tokenize(sentence)
             output = tokenized_sentence.split()
         case "Underthesea":
             raw_output = word_tokenize(sentence)
-            output = [word.replace(' ', '_') for word in raw_output]
+            output = [word.replace(" ", "_") for word in raw_output]
+
+    return output
+
+
+def handle_encoding(sentence, source_unicode, target_unicode):
+    if (target_unicode == "VNI Windows"):
+        target_unicode = "VNI_WIN"
+    elif (target_unicode == "VIETWARE X"):
+        target_unicode = "VIETWARE_X"
+    elif (target_unicode == "VPS"):
+        target_unicode = "VPS_WIN"
+        
+    if (source_unicode == "VNI Windows"):
+        source_unicode = "VNI_WIN"
+    elif (source_unicode == "VIETWARE X"):
+        source_unicode = "VIETWARE_X"
+    elif (source_unicode == "VPS"):
+        source_unicode = "VPS_WIN"
+    return convert(sentence, source_unicode, list_unicode.get(target_unicode, "UNICODE")) # type: ignore
+
+
+def remove_stop_word(sentence):
+
+    stopwords = load_stopwords("stopword.txt")
+    result = []
+    for word in sentence:
+        if word not in stopwords:
+            result.append(word)
+
+    return result
+
+
+def punctuation_handle(sentence):
+    # Replace full-width punctuation with half-width punctuation
+    output = sentence.replace('，', ',').replace('。', '.').replace('！', '!').replace('？', '?')
+    
+    # Remove extra spaces around punctuation
+    output = re.sub(r'\s([,.!?])', r'\1', output)
+    output = re.sub(r'([,.!?])\s+', r'\1 ', output)
+    
+    # Normalize ellipses
+    output = re.sub(r'\s*…\s*', '...', output)
     
     return output
 
-def handle_encoding(sentence, format_encode):
-    return convert(sentence, format_encode)
+def diacritics_handle(sentence):
 
-def remove_stop_word(sentence):
-    pass
+    bang_nguyen_am = [
+        ["a", "à", "á", "ả", "ã", "ạ", "a"],
+        ["ă", "ằ", "ắ", "ẳ", "ẵ", "ặ", "aw"],
+        ["â", "ầ", "ấ", "ẩ", "ẫ", "ậ", "aa"],
+        ["e", "è", "é", "ẻ", "ẽ", "ẹ", "e"],
+        ["ê", "ề", "ế", "ể", "ễ", "ệ", "ee"],
+        ["i", "ì", "í", "ỉ", "ĩ", "ị", "i"],
+        ["o", "ò", "ó", "ỏ", "õ", "ọ", "o"],
+        ["ô", "ồ", "ố", "ổ", "ỗ", "ộ", "oo"],
+        ["ơ", "ờ", "ớ", "ở", "ỡ", "ợ", "ow"],
+        ["u", "ù", "ú", "ủ", "ũ", "ụ", "u"],
+        ["ư", "ừ", "ứ", "ử", "ữ", "ự", "uw"],
+        ["y", "ỳ", "ý", "ỷ", "ỹ", "ỵ", "y"],
+    ]
 
-def xu_ly_dau_cau(sentence):
-    pass
+    nguyen_am_to_ids = {}
+    for i in range(len(bang_nguyen_am)):
+        for j in range(len(bang_nguyen_am[i]) - 1):
+            nguyen_am_to_ids[bang_nguyen_am[i][j]] = (i, j)
 
-def xu_ly_dau_thanh(sentence):
-    pass
+    chars = list(sentence)
+    dau_cau = 0
+    nguyen_am_index = []
+    qu_or_gi = False
+    for index, char in enumerate(chars):
+        x, y = nguyen_am_to_ids.get(char, (-1, -1))
+        if x == -1:
+            continue
+        elif x == 9:
+            if index != 0 and chars[index - 1] == "q":
+                chars[index] = "u"
+                qu_or_gi = True
+        elif x == 5:
+            if index != 0 and chars[index - 1] == "g":
+                chars[index] = "i"
+                qu_or_gi = True
+        if y != 0:
+            dau_cau = y
+            chars[index] = bang_nguyen_am[x][0]
+        if not qu_or_gi or index != 1:
+            nguyen_am_index.append(index)
+    if len(nguyen_am_index) < 2:
+        if qu_or_gi:
+            if len(chars) == 2:
+                x, y = nguyen_am_to_ids.get(chars[1])  # type: ignore
+                chars[1] = bang_nguyen_am[x][dau_cau]
+            else:
+                x, y = nguyen_am_to_ids.get(chars[2], (-1, -1))
+                if x != -1:
+                    chars[2] = bang_nguyen_am[x][dau_cau]
+                else:
+                    chars[1] = (
+                        bang_nguyen_am[5][dau_cau]
+                        if chars[1] == "i"
+                        else bang_nguyen_am[9][dau_cau]
+                    )
+            return "".join(chars)
+        return sentence
+
+    for index in nguyen_am_index:
+        x, y = nguyen_am_to_ids[chars[index]]
+        if x == 4 or x == 8:
+            chars[index] = bang_nguyen_am[x][dau_cau]
+            return "".join(chars)
+
+    if len(nguyen_am_index) == 2:
+        if nguyen_am_index[-1] == len(chars) - 1:
+            x, y = nguyen_am_to_ids[chars[nguyen_am_index[0]]]
+            chars[nguyen_am_index[0]] = bang_nguyen_am[x][dau_cau]
+        else:
+            x, y = nguyen_am_to_ids[chars[nguyen_am_index[1]]]
+            chars[nguyen_am_index[1]] = bang_nguyen_am[x][dau_cau]
+    else:
+        x, y = nguyen_am_to_ids[chars[nguyen_am_index[1]]]
+        chars[nguyen_am_index[1]] = bang_nguyen_am[x][dau_cau]
+
+    return "".join(chars)
 
 def remove_html(sentence):
-    pass
+    return re.sub(r"<[^>]*>", "", sentence)
 
 
 @app.post("/process")
 async def process_text(input: FunctionList):
-    list_function = input.dict()["function"]
-    output = input.dict()["text"]
-    option = input.dict()["option"]
-    
+    list_function = input.model_dump()["function"]
+    output = input.model_dump()["text"]
+    option = input.model_dump()["option"]
+
     for function in list_function:
-        match function:    
-            case "tach_tu":
+        match function:
+            case "tách từ":
                 output = tach_tu(output, option["tach_tu"])
-            case "handle_encoding":
-                output = handle_encoding(output, option["handle_encoding"])
-            case "stop_word":
-                output = remove_stop_word(output, option["handle_encoding"])
-            case "xu_ly_dau_cau":
-                output = dau_cau(output, option["handle_encoding"])
-            case "xu_ly_dau_thanh":
-                output = handle_encoding(output, option["handle_encoding"])
-            case "remove_html":
-                output = handle_encoding(output, option["handle_encoding"])
-    return output
+            case "xử lý encoding":
+                output = handle_encoding(output, option["source_encoding"], option["target_encoding"])
+            case "loại bỏ hư từ":
+                type_output = "string"
+                if type(output) is list:
+                    list_word = output
+                    type_output = "list"
+                else:
+                    list_word = tach_tu(output, option["tach_tu"])
+                output = remove_stop_word(list_word)
+                if type_output == "string":
+                    output = " ".join([word.replace("_", " ") for word in output])
+            case "chuẩn hóa dấu câu":
+                output = punctuation_handle(output)
+            case "chuẩn hóa dấu thanh":
+
+                type_output = "string"
+                if type(output) is list:
+                    words = output
+                    type_output = "list"
+                else:
+                    words = output.split()  # type: ignore
+
+                for index, word in enumerate(words):
+                    words[index] = diacritics_handle(word)
+
+                if type_output == "string":
+                    output = " ".join(words)
+                else:
+                    output = words
+            case "loại bỏ mã HTML":
+                if type(output) is list:
+                    content_html = " ".join(output)
+                    output = [
+                        element
+                        for element in remove_html(content_html).split(" ")
+                        if element != ""
+                    ]
+                else:
+                    output = remove_html(output)
+    return {"Kết quả": output}
+
 
 if __name__ == "__main__":
     import uvicorn
+
     uvicorn.run(app, host="0.0.0.0", port=8000)

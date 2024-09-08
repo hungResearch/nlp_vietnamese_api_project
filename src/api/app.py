@@ -8,21 +8,6 @@ from pyvi import ViTokenizer
 from underthesea import word_tokenize
 import re
 
-patterns = {
-    "TCVN3": [
-        r"\w­[¬íêîëì]|®[¸µ¹¶·Ê¾»Æ¼½ÌÑÎÏªÕÒÖÓÔÝ×ÞØÜãßäáâ«èåéæç¬íêîëìóïôñòøõùö]",
-        0,
-    ],
-    "VNI_WIN": [r"[öô][ùøïûõ]|oa[ëùøïûõ]|ñ[aoeuôö][äàáåãùøïûõ]", re.IGNORECASE],
-    "VIQR": [
-        r"u[\+\*]o[\+\*]|dd[aoe][\(\^~\'`]|[aoe]\^[~`\'\.\?]|[uo]\+[`\'~\.\?]|a\([\'`~\.\?]",
-        re.IGNORECASE,
-    ],
-    "UNICODE": [r"[Ạ-ỹ]", 0],
-    "VPS_WIN": [r"\wÜ[Ö§©®ª«]|Ç[áàåäãÃí¢¥£¤èËÈëêÍíìÎÌïóòÕõôÓÒ¶°Ö§©®ª«úùøûÛÙØ¿º]", 0],
-    "VIETWARE_X": [r"[áãä][úöûøù]|à[õòûóô]|[åæ][ïìüíî]", re.IGNORECASE],
-}
-
 list_unicode = {
     "TCVN3": ["Aµ", "A¸", "¢" , "A·", "EÌ", "EÐ", "£" , "I×", "IÝ", "Oß",
 			"Oã", "¤" , "Oâ", "Uï", "Uó", "Yý", "µ" , "¸" , "©" , "·" ,
@@ -109,17 +94,9 @@ list_unicode = {
 			"ÆÍ", "æí", "ÆÎ", "æî", "ÆÛ", "æû", "YÌ", "yì", "YÑ", "yñ",
 			"YÍ", "yí", "YÎ", "yî", "."],
 }
-    
-def detectCharset(str_input):
-    for pattern in patterns:
-        match = re.search(patterns[pattern][0], str_input, patterns[pattern][1])
-        if match != None:
-            return list_unicode[pattern]
-    return None
 
 
-def convert(str_original, source_unicode, target_charset):
-    source_charset = list_unicode[source_unicode]
+def convert(str_original, source_charset, target_charset):
     if (source_charset == None):
         return "Không thể xác định loại unicde của văn bản"
     
@@ -149,7 +126,6 @@ class FunctionList(BaseModel):
     text: str
     function: list[str]
     option: dict
-
 
 app = FastAPI()
 
@@ -189,7 +165,7 @@ def handle_encoding(sentence, source_unicode, target_unicode):
         source_unicode = "VIETWARE_X"
     elif (source_unicode == "VPS"):
         source_unicode = "VPS_WIN"
-    return convert(sentence, source_unicode, list_unicode.get(target_unicode, "UNICODE")) # type: ignore
+    return convert(sentence, list_unicode.get(source_unicode, "UNICODE"), list_unicode.get(target_unicode, "UNICODE")) # type: ignore
 
 
 def remove_stop_word(sentence):
@@ -201,7 +177,6 @@ def remove_stop_word(sentence):
             result.append(word)
 
     return result
-
 
 def punctuation_handle(sentence):
     # Replace full-width punctuation with half-width punctuation
@@ -350,7 +325,15 @@ async def process_text(input: FunctionList):
                     ]
                 else:
                     output = remove_html(output)
-    return {"Kết quả": output}
+            case "loại bỏ khoảng trắng":
+                output = re.sub(r"\s+", " ", str(output))
+    if type(output) is list:
+        output = " ".join(output)
+    
+    # handle multiple \n character
+    output = re.sub("\n+", "\n", str(output))
+
+    return {"processed_text": output}
 
 
 if __name__ == "__main__":

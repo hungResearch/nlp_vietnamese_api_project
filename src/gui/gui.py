@@ -36,7 +36,7 @@ with st.container():
     col1, col2 = st.columns([0.2, 0.8])
     with col1:
         if st.toggle("Xử lý encoding"):
-            list_function.append("chuẩn hóa encoding")
+            list_function.append("xử lý encoding")
             with col2:
                     option["source_encoding"] = st.selectbox(
                         "Chọn mã encode nguồn",
@@ -59,6 +59,9 @@ if st.toggle("Chuẩn hóa dấu thanh"):
 if st.toggle("Loại bỏ mã HTML"):
     list_function.append("loại bỏ mã HTML")
     
+if st.toggle("Loại bỏ khoảng trắng dư thừa"):
+    list_function.append("loại bỏ khoảng trắng")
+    
 list_order = st.multiselect(
     "Chọn thứ tự bạn muốn xử lý:",
     list_function,
@@ -67,4 +70,4 @@ list_order = st.multiselect(
 if st.button("Xử lý", disabled=len(list_order) != len(list_function)):
     response = requests.post("http://fastapi:8000/process", json={"text": text_input, "function": list_order, "option": option})
     result = response.json()
-    st.write(result)
+    st.write(result["processed_text"])
